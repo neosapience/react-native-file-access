@@ -2,10 +2,12 @@ package com.alpha0010.fs
 
 import android.content.ContentValues
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.os.StatFs
 import android.provider.MediaStore
 import android.util.Base64
+import android.util.Log
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.network.OkHttpClientProvider
 import kotlinx.coroutines.CoroutineScope
@@ -109,7 +111,7 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
   }
 
   @ReactMethod
-  fun cpExternal(source: String, targetName: String, dir: String, promise: Promise) {
+  fun cpExternal(source: String, targetName: String, dir: String, subDir: String?, promise: Promise) {
     try {
       openForReading(source).use { input ->
         if (dir == "downloads") {
@@ -132,16 +134,38 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 ContentValues().apply {
                   put(MediaStore.Audio.Media.DISPLAY_NAME, targetName)
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    if (subDir != null) {
+                      put(MediaStore.Audio.Media.RELATIVE_PATH,
+                        Environment.DIRECTORY_MUSIC + File.separator + subDir)
+                    }
+                  } else {
+                    lateinit var file: File
+                    if (subDir != null) {
+                      @Suppress("DEPRECATION")
+                      val subFolder = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                        subDir
+                      )
+                      try {
+                        if (!subFolder.exists()) {
+                          subFolder.mkdirs()
+                        }
+                      } catch (e: Throwable) {
+                        promise.reject(e)
+                      }
+                      file = File(subFolder, targetName)
+                    } else {
+                      file = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                        targetName
+                      )
+                    }
 
-                  if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
-                    // Older versions require path be specified.
                     @Suppress("DEPRECATION")
                     put(
                       MediaStore.Audio.AudioColumns.DATA,
-                      File(
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                        targetName
-                      ).absolutePath
+                      file.absolutePath
                     )
                   }
                 }

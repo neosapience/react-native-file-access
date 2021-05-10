@@ -20,7 +20,8 @@ type FileAccessType = {
   cpExternal(
     source: string,
     targetName: string,
-    dir: ExternalDir
+    dir: ExternalDir,
+    subDir: string,
   ): Promise<void>;
   df(): Promise<FsStat>;
   exists(path: string): Promise<boolean>;
