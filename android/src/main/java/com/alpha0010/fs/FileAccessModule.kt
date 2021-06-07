@@ -1,6 +1,7 @@
 package com.alpha0010.fs
 
 import android.content.ContentValues
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -15,10 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.*
 import okhttp3.Callback
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStream
+import java.io.*
 import java.security.MessageDigest
 
 class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
@@ -134,6 +132,8 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 ContentValues().apply {
                   put(MediaStore.Audio.Media.DISPLAY_NAME, targetName)
+                  val duration = getDuration(source)
+
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     if (subDir != null) {
                       put(MediaStore.Audio.Media.RELATIVE_PATH,
@@ -167,6 +167,8 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
                       MediaStore.Audio.AudioColumns.DATA,
                       file.absolutePath
                     )
+                    put(MediaStore.Audio.Media.TITLE, targetName)
+                    put(MediaStore.Audio.Media.DURATION, duration)
                   }
                 }
               )
@@ -471,5 +473,15 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
     } else {
       File(path)
     }
+  }
+
+  private fun getDuration(path: String): Int {
+    val mp = MediaPlayer()
+    val fd = FileInputStream(parsePathToFile(path)).fd
+    mp.setDataSource(fd)
+    mp.prepare()
+    val length = mp.duration
+    mp.release()
+    return length
   }
 }
