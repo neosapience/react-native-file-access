@@ -21,7 +21,7 @@ type FileAccessType = {
     source: string,
     targetName: string,
     dir: ExternalDir,
-    subDir: string,
+    subDir: string
   ): Promise<void>;
   df(): Promise<FsStat>;
   exists(path: string): Promise<boolean>;

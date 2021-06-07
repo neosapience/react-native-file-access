@@ -66,7 +66,12 @@ export const FileSystem = {
    *
    * On Android API level < 29, may require permission WRITE_EXTERNAL_STORAGE.
    */
-  cpExternal(source: string, targetName: string, dir: ExternalDir, subDir: string) {
+  cpExternal(
+    source: string,
+    targetName: string,
+    dir: ExternalDir,
+    subDir: string
+  ) {
     return FileAccessNative.cpExternal(source, targetName, dir, subDir);
   },
 
