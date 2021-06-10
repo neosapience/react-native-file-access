@@ -132,6 +132,7 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 ContentValues().apply {
                   put(MediaStore.Audio.Media.DISPLAY_NAME, targetName)
+                  put(MediaStore.Audio.Media.MIME_TYPE, getMimeType(targetName))
                   val duration = getDuration(source)
 
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -483,5 +484,13 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
     val length = mp.duration
     mp.release()
     return length
+  }
+
+  private fun getMimeType(fileName: String): String {
+    return when(fileName.split(".").last()) {
+      "mp3" -> "audio/mpeg"
+      "wav" -> "audio/wav"
+      else -> "audio/*"
+    }
   }
 }
