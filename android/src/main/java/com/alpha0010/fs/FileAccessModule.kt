@@ -134,6 +134,7 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
                   put(MediaStore.Audio.Media.DISPLAY_NAME, targetName)
                   put(MediaStore.Audio.Media.MIME_TYPE, getMimeType(targetName))
                   put(MediaStore.Audio.Media.DATE_MODIFIED, System.currentTimeMillis() / 1000)
+                  put(MediaStore.Audio.Media.ARTIST, "Typecast")
                   val duration = getDuration(source)
 
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
