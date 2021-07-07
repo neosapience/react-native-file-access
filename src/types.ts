@@ -1,5 +1,5 @@
 /**
- * asset - Android `assets/` folder or iOS main bundle.
+ * asset - Android `assets/` folder or iOS/MacOS main bundle.
  * resource - Android `res/` folder.
  */
 export type AssetType = 'asset' | 'resource';
@@ -39,6 +39,30 @@ export type FetchResult = {
    */
   url: string;
 };
+
+export type FetchCompleteEvent = {
+  requestId: number;
+  state: 'complete';
+} & FetchResult;
+
+export type FetchErrorEvent = {
+  requestId: number;
+  state: 'error';
+  message: string;
+};
+
+export type FetchProgressEvent = {
+  requestId: number;
+  state: 'progress';
+  bytesRead: number;
+  contentLength: number;
+  done: boolean;
+};
+
+export type FetchEvent =
+  | FetchCompleteEvent
+  | FetchErrorEvent
+  | FetchProgressEvent;
 
 export type FileStat = {
   /**

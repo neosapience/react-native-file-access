@@ -1,13 +1,16 @@
-import { NativeModules } from 'react-native';
+import { NativeEventEmitter, NativeModules } from 'react-native';
 import type {
   AssetType,
   Encoding,
   ExternalDir,
-  FetchResult,
   FileStat,
   FsStat,
   HashAlgorithm,
 } from './types';
+
+export const FileAccessEventEmitter = new NativeEventEmitter(
+  NativeModules.RNFileAccess
+);
 
 type FileAccessType = {
   appendFile(path: string, data: string, encoding: Encoding): Promise<void>;
@@ -25,7 +28,11 @@ type FileAccessType = {
   ): Promise<void>;
   df(): Promise<FsStat>;
   exists(path: string): Promise<boolean>;
+  /**
+   * Listen to `FetchEvent` events from the `requestId`.
+   */
   fetch(
+    requestId: number,
     resource: string,
     init: {
       body?: string;
@@ -33,9 +40,9 @@ type FileAccessType = {
       method?: string;
       path?: string;
     }
-  ): Promise<FetchResult>;
+  ): void;
   /**
-   * Only defined on iOS.
+   * Only defined on iOS & MacOS.
    */
   getAppGroupDir(groupName: string): Promise<string>;
   hash(path: string, algorithm: HashAlgorithm): Promise<string>;

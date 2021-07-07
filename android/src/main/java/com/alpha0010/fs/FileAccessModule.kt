@@ -1,7 +1,6 @@
 package com.alpha0010.fs
 
 import android.content.ContentValues
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -10,16 +9,16 @@ import android.provider.MediaStore
 import android.util.Base64
 import android.util.Log
 import com.facebook.react.bridge.*
-import com.facebook.react.modules.network.OkHttpClientProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import okhttp3.*
-import okhttp3.Callback
-import java.io.*
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 import java.security.MessageDigest
 
-class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+class FileAccessModule(reactContext: ReactApplicationContext) :
+  ReactContextBaseJavaModule(reactContext) {
   private val ioScope = CoroutineScope(Dispatchers.IO)
 
   override fun getName(): String {
@@ -243,67 +242,8 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
   }
 
   @ReactMethod
-  fun fetch(resource: String, init: ReadableMap, promise: Promise) {
-    val request = try {
-      // Request will be saved to a file, no reason to also save in cache.
-      val builder = Request.Builder()
-        .url(resource)
-        .cacheControl(CacheControl.Builder().noStore().build())
-
-      if (init.hasKey("method")) {
-        if (init.hasKey("body")) {
-          builder.method(
-            init.getString("method")!!,
-            RequestBody.create(null, init.getString("body")!!)
-          )
-        } else {
-          builder.method(init.getString("method")!!, null)
-        }
-      }
-
-      if (init.hasKey("headers")) {
-        for (header in init.getMap("headers")!!.entryIterator) {
-          builder.header(header.key, header.value as String)
-        }
-      }
-
-      builder.build()
-    } catch (e: Throwable) {
-      promise.reject(e)
-      return
-    }
-
-    // Share client with RN core library.
-    val call = OkHttpClientProvider.getOkHttpClient().newCall(request)
-    call.enqueue(object : Callback {
-      override fun onFailure(call: Call, e: IOException) {
-        promise.reject(e)
-      }
-
-      override fun onResponse(call: Call, response: Response) {
-        try {
-          response.use {
-            if (init.hasKey("path")) {
-              parsePathToFile(init.getString("path")!!)
-                .outputStream()
-                .use { response.body()!!.byteStream().copyTo(it) }
-            }
-
-            val headers = response.headers().names().map { it to response.header(it) }
-            promise.resolve(Arguments.makeNativeMap(mapOf(
-              "headers" to Arguments.makeNativeMap(headers.toMap()),
-              "ok" to response.isSuccessful,
-              "redirected" to response.isRedirect,
-              "status" to response.code(),
-              "statusText" to response.message(),
-              "url" to response.request().url().toString()
-            )))
-          }
-        } catch (e: Throwable) {
-          promise.reject(e)
-        }
-      }
-    })
+  fun fetch(requestId: Int, resource: String, init: ReadableMap) {
+    NetworkHandler(reactApplicationContext).fetch(requestId, resource, init)
   }
 
   @ReactMethod
@@ -377,7 +317,8 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
     ioScope.launch {
       try {
         if (!parsePathToFile(source).renameTo(parsePathToFile(target))) {
-          parsePathToFile(source).also { it.copyTo(parsePathToFile(target), overwrite = true) }.delete()
+          parsePathToFile(source).also { it.copyTo(parsePathToFile(target), overwrite = true) }
+            .delete()
         }
         promise.resolve(null)
       } catch (e: Throwable) {
@@ -391,7 +332,7 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
     try {
       val data = openForReading(path).use { it.readBytes() }
       if (encoding == "base64") {
-        promise.resolve(Base64.encodeToString(data, Base64.DEFAULT))
+        promise.resolve(Base64.encodeToString(data, Base64.NO_WRAP))
       } else {
         promise.resolve(data.decodeToString())
       }
@@ -405,13 +346,17 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
     try {
       val file = parsePathToFile(path)
       if (file.exists()) {
-        promise.resolve(Arguments.makeNativeMap(mapOf(
-          "filename" to file.name,
-          "lastModified" to file.lastModified(),
-          "path" to file.path,
-          "size" to file.length(),
-          "type" to if (file.isDirectory) "directory" else "file",
-        )))
+        promise.resolve(
+          Arguments.makeNativeMap(
+            mapOf(
+              "filename" to file.name,
+              "lastModified" to file.lastModified(),
+              "path" to file.path,
+              "size" to file.length(),
+              "type" to if (file.isDirectory) "directory" else "file",
+            )
+          )
+        )
       } else {
         promise.reject("ENOENT", "'$path' does not exist.")
       }
@@ -459,40 +404,6 @@ class FileAccessModule(reactContext: ReactApplicationContext) : ReactContextBase
       reactApplicationContext.contentResolver.openInputStream(Uri.parse(path))!!
     } else {
       parsePathToFile(path).inputStream()
-    }
-  }
-
-  /**
-   * Return a File object and do some basic sanitization of the passed path.
-   */
-  private fun parsePathToFile(path: String): File {
-    return if (path.contains("://")) {
-      try {
-        val pathUri = Uri.parse(path)
-        File(pathUri.path!!)
-      } catch (e: Throwable) {
-        File(path)
-      }
-    } else {
-      File(path)
-    }
-  }
-
-  private fun getDuration(path: String): Int {
-    val mp = MediaPlayer()
-    val fd = FileInputStream(parsePathToFile(path)).fd
-    mp.setDataSource(fd)
-    mp.prepare()
-    val length = mp.duration
-    mp.release()
-    return length
-  }
-
-  private fun getMimeType(fileName: String): String {
-    return when(fileName.split(".").last()) {
-      "mp3" -> "audio/mpeg"
-      "wav" -> "audio/wav"
-      else -> "audio/*"
     }
   }
 }
